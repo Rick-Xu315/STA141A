@@ -1,0 +1,823 @@
+---
+title: "The influencing factors of Covid-19 spread: Based on WHO and OWID data set "
+author: "Ruize Xu, 920415610"
+date: "March 10 2022"
+output:
+  prettydoc::html_pretty:
+    theme: architect
+    highlight: github
+    df_print: paged
+    number_sections: yes
+    toc: true
+    
+---
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE,warning = FALSE)
+library(tidyverse)
+library(ggplot2)
+
+library(RColorBrewer)
+library(patchwork)
+library(rticles)
+```
+
+
+***
+# Abstract 
+
+COVID-19 is wide-spread pneumonia virus all over the world, which has made a huge impact on normal human life. In this project, we use the COVID-19 data from WHO and Our World In Data to explore several relevant questions. $\textbf{a)}$ Visualize the latest global epidemic condition and the trend throughout the period in terms of cumulative cases, new cases and morality rate, etc. $\textbf{b)}$ Use linear regression model to explore the influencing factors of the spread of the virus, with cross-sectional data from different countries at the same time point. $\textbf{c)}$ Use ANOVA to explore the effect of vaccination and government's restriction policy on controlling the new cases for a single country, like America. As a result, we find that containment index, hospital bed per thousand, gdp per capital and people vaccinated per hundred have significant positive correlation with total cases per million. In addition, we find that vaccination and containment level do have an influence on new cases in US. All the code used in the project is attached in the code appendix.
+
+
+***
+# Introduction
+
+
+
+Coronavirus disease 2019 (COVID-19) is a contagious disease caused by severe acute respiratory syndrome coronavirus 2 (SARS-CoV-2). The first known case was identified in Wuhan, China, in December 2019. The disease has since spread worldwide, leading to an ongoing pandemic. Symptoms of COVID‑19 are variable, but often include fever, cough, headache, fatigue, breathing difficulties, loss of smell, and loss of taste$^{[1]}$. COVID-19 has made a huge worldwide impact on normal life. Controlling and managing the spread of viruses has become one of the top mutual priorities in the world. 
+
+
+Therefore, we basically have these real-world motivation for this project. $\textbf{1)}$ For those who have few math knowledge, it's important to visualize the epidemic situation intuitively and concisely so that they easily catch up. $\textbf{2)}$ It's meaningful and informative to explore the influencing factor that makes the difference among various countries' effectiveness in fighting the outbreak, in order to analyze the factors resulting in successful virus management and to give those countries or regions with poor management some experience to learn from and improve. $\textbf{3)}$ Meanwhile, we want to know whether vaccination and governments' stringency policy is objectively valid as well, which informs governments to promote vaccination and implement reasonable restrictions. 
+
+Based on these real-world motivation, we propose three questions of interest. $\textbf{a)}$ Visualize both the latest global epidemic condition and the trend throughout the period intuitively and concisely in terms of cumulative cases, new cases and morality rate, etc. Our methods include various plots like box  plot, bubble plot, stacked area plot, etc. $\textbf{b)}$ Use linear regression and related revised model to explore the influencing factors of the spread of the virus, with cross-sectional data from different countries at the same time point. $\textbf{c)}$ Use ANOVA to explore the effect of vaccination and government's restriction policy on controlling the new cases for a single country, like America. Our assumptions on these questions are as follows:
+
+Assumption for $\textbf{b)}$: Factors include a country's population density, economic development level, medical resources, vaccination and government's restriction policy have significant influence on its control of the spread of the virus. Assumption for $\textbf{c)}$: Vaccination and restriction policy have positive impact on controlling the spread of virus.
+
+To verify our assumptions, we use the [cases data from WHO](https://covid19.who.int/) and  [supportive data from Our World In Data(owid)](https://ourworldindata.org/coronavirus). We combine these two data set, including key variables of ```cumulative cases```, ```new cases```, ```cumulative deaths``` and ```new deaths``` in WHO data and ```population density```, ```GDP per capital```, ```total cases per million```, ```total deaths per million```, ```containment_index```, ```people vaccinated per hundred``` and ```hospital beds per thousand``` in owid data set.
+
+# Background 
+
+## Related work
+
+According to Kraichat Tantrakarnapa(2020), the number of infected cases was significant associated with economic factor and personnel mobility based on case study of Thailand$^{[2]}$. According to Claudio Violato(2021), the stringency index produced the most important effect for mortality and infection rates, based on multiple regression and  lockdown, population, mortality rates, infection rates data obtained from eight countries including Austria, Belgium, France, Germany, Italy, Netherlands, Spain, and the United Kingdom$^{[3]}$. According to Lin Xie(2021), it can proven that the numbers of hospital beds, healthcare system beds, and medical staff per confirmed cases all had significant negative effects on the coronavirus disease mortality rate, based on linear regression, a time-varying effect model, and a regression discontinuity$^{[4]}$. However, these previous research focus on only certain factor. we want to consider all these variables to see their effects at the same time.
+
+## Data source
+
+### WHO COVID-19 data set
+
+To solve our questions of interest, we use [WHO COVID-19 Global Data](https://data.humdata.org/dataset/coronavirus-covid-19-cases-and-deaths/resource/2ac6c3c0-76fa-4486-9ad0-9aa9e253b78d) from WHO as data source.
+
+According to WHO(2019), from the 31 December 2019 to the 21 March 2020, WHO collected the numbers of confirmed COVID-19 cases and deaths through official communications under the International Health Regulations (IHR, 2005), complemented by monitoring the official ministries of health websites and social media accounts. Since 22 March 2020, global data are compiled through WHO region-specific dashboards (see links below), and/or aggregate count data reported to WHO headquarters daily$^{[5]}$.
+
+This data set has 8 variables, which are listed as follow:
+
+|  Variable   | Meaning  |
+|  ----  | ----  |
+| Date_reported   |   Date of report, YY/MM/DD |
+| Country_code   |   Abbreviation of country name |                     
+| Country |  Country name |            
+| WHO_region   | Regions divided by WHO |    
+| Cumulative_cases   | Cumulative cases up to the reporting date  | 
+| New_cases   | New cases relative to last report  | 
+| New_deaths   | New deaths relative to last report  |   
+| Cumulative_deaths   | Cumulative deaths up to the reporting date   |   
+
+The data last from 2020/1/3 to 2022/2/17, involving  237 countries in 7 regions regulated by WHO. The meaning of the region is as follow:
+
+|  WHO_region  | Meaning  |
+|  ----  | ----  |
+| EMRO  |   Eastern Mediterranean |
+| EURO  |   European  |                     
+| AFRO |  African  |            
+| WPRO   | Western Pacific |    
+|  AMRO  |  Americas | 
+| SEARO   | South-East Asian | 
+| Other   | Other  |   
+
+### OWID COVID-19 data set
+
+To obtain more information apart from just cases, we use [supportive data from Our World In Data(owid)](https://ourworldindata.org/coronavirus). According Our World in Data(2020), this is a complete COVID-19 data set which collects COVID-19 data maintained by Our World in Data and is updated daily throughout the duration of the COVID-19 pandemic$^{[6]}$. It involves data of vaccinations, tests & positivity, hospital & ICU, confirmed cases, confirmed deaths, reproduction rate, policy responses for at most 218 countries in the world. The data start from 2020/2/24. 
+
+The variables we choose and manually create for our project are listed as follows:
+
+|Variable|	Description|
+|----|----|
+|iso_code | alpha-3 – three-letter country codes|
+|date|	Date of observation|
+|population_density	|Number of people divided by land area, measured in square kilometers, most recent year available|
+|total_cases | Total confirmed cases of COVID-19. Counts can include probable cases, where reported.|
+|new_cases |	New confirmed cases of COVID-19. Counts can include probable cases, where reported. In rare cases where our source reports a |negative daily |change due to a data correction, we set this metric to NA.|
+|total_deaths	|Total deaths attributed to COVID-19. Counts can include probable deaths, where reported.|
+|new_deaths|	New deaths attributed to COVID-19. Counts can include probable deaths, where reported. In rare cases where our source reports a negative daily change due to a data correction, we set this metric to NA.|
+|Mortality_rate| Manually made by total_deaths/total_cases, the number of deaths in certain number of cases|
+|total_cases_per_million| Total confirmed cases of COVID-19 per 1,000,000 people. Counts can include probable cases, where reported.|
+|total_deaths_per_million	|Total deaths attributed to COVID-19 per 1,000,000 people. Counts can include probable deaths, where reported.|
+|containment_index| A composite measure based on thirteen policy response indicators including school closures, workplace closures, etc. |
+|people_vaccinated_per_hundred|Total number of people who received at least one vaccine dose per 100 people in the total population.|
+|hospital_beds_per_thousand | Hospital beds per 1,000 people, most recent year available since 2010|
+
+### Combined data set
+
+We combine these two data set by key of data and country code. Another variable is manually made by existent variables. 
+The target population of his project is for readers who are familiar with statistics domain knowledge to research more about COVID-19 data and replicate, and those who have few statistical knowledge to know more about COVID-19 pandemic intuitively. For sampling strategy, we use all the samples of countries for \textbf{a)} on 2022/2/17, and sample of America data in the entire period for \textbf{b)}. In addition, data entries with missing and infinite values are deleted. The final samples we use are shown in the following part of the project.
+
+
+
+
+
+# Descriptive analysis 
+
+
+```{r,results='hide'}
+# Load and preprocess the dataset
+library(haven)
+
+covid<-read.csv("covid.csv")
+covid$Date_reported<-as.Date(covid$Date_reported)
+
+```
+
+
+
+
+## Univariate analysis
+
+### Region distribution
+
+```{r}
+covid.latest<-covid%>%filter(Date_reported=="2022/2/17")%>%mutate(Morality_rate=Cumulative_deaths/Cumulative_cases)
+
+ggplot() + geom_bar(data = covid.latest, aes(x = WHO_region,fill=factor(WHO_region)), stat = "count")
+
+```
+
+In WHO data set, samples of countries come from 7 regions divided by WHO. ```EURO``` region has most samples, while ```OTHER``` region has least. ```AFRO``` and ```AMRO``` also have relatively large counts of samples. 
+
+### Summary of univariates for latest Section data
+
+```{r}
+summary(covid.latest)
+
+```
+## Multivariate analysis 
+
+### Latest section data grouped by region
+
+```{r}
+
+covid.latest.region<-covid.latest%>%group_by(WHO_region)%>%summarise(WHO_region=unique(WHO_region),Cumulative_cases=sum(Cumulative_cases), Cumulative_deaths=sum(Cumulative_deaths))%>%mutate(Mortality_rate=Cumulative_deaths/Cumulative_cases)
+
+```
+
+```{r}
+bar1<-ggplot(covid.latest.region, aes(WHO_region, Cumulative_cases)) + 
+  geom_bar(aes(y=Cumulative_cases, fill = WHO_region),stat = "identity")
+
+bar2<-ggplot(covid.latest.region, aes(WHO_region, Mortality_rate)) + 
+  geom_bar(aes(y= Mortality_rate, fill = WHO_region),stat = "identity")
+
+bar1/bar2
+```
+
+The latest cumulative cases grouped by region show that ```EURO``` and ```AMRO``` region accounts for most of the cumulative cases in the entire world. Other regions have much less cumulative cases. ```AMRO``` and ```AMRO``` are regions with most developed countries, which is possibly informative on relationship between development and cases.  
+
+From the bar plot of mortality rate, we can find that the morality rate is relatively average, despite the numbers of cases vary a lot, which is possibly attributed to the natural biological property of the virus. Region of ```AFRO``` has highest mortality rate and ```EURO``` has evidently lower mortality rate. The imbalanced medical resources among different regions might be the dominant reason. 
+
+
+```{r}
+
+
+box1<-ggplot(covid.latest, aes(WHO_region, Cumulative_cases)) + 
+  geom_boxplot(aes(fill = WHO_region)) +
+  theme(legend.position = "none")
+box2<-ggplot(covid.latest, aes(WHO_region, Morality_rate)) + 
+  geom_boxplot(aes(fill = WHO_region)) +
+  theme(legend.position = "none")
+box1/box2
+```
+
+From the box plot of cumulative cases grouped by region, we find that outliers commonly exist in all the regions except ```Other```, which indicates that the cumulative cases are in biased distribution. Only a few of the countries have the large part of all the cases. This phenomenon is mostly evident in ```AMRO``` and ```EURO```, possibly caused by biased population among regions.
+
+From the box plot of mortality rate, the highest value appears in ```EMRO```, which also have relatively higher mortality rate in all the regions. However, the mortality rate shows no significant regional differences in other regions.
+
+
+
+### Trend data grouped by region
+
+```{r}
+covid.region<-covid%>%group_by(Date_reported,WHO_region,)%>%summarise(Date_reported=unique(Date_reported),WHO_region=unique(WHO_region), Cumulative_cases=sum(Cumulative_cases,na.rm = TRUE), Cumulative_deaths=sum(Cumulative_deaths,na.rm = TRUE),New_cases=sum(New_cases,na.rm = TRUE),New_deaths=sum(New_deaths,na.rm = TRUE),.groups = 'drop')%>%mutate(Mortality_rate=Cumulative_deaths/Cumulative_cases)
+covid.region$Mortality_rate[is.na(covid.region$Mortality_rate)]<- 0;
+#write.csv(covid.region,"trail.csv")
+
+```
+
+
+```{r}
+line1<-ggplot()+
+    geom_line(covid.region,mapping=aes(x=Date_reported,y=Cumulative_cases,color=WHO_region),size=1.3,alpha=0.6)
+    
+line2<-ggplot()+
+    geom_line(covid.region,mapping=aes(x=Date_reported,y=Cumulative_deaths,color=WHO_region),size=1.3,alpha=0.6)
+
+line1/line2
+```
+
+From the line plot of cumulative cases trend, we can see ```AMRO``` and ```EMRO``` have high increasing speed at the beginning of the pandemic and have a mutual steep increase starting from 2022-01, which is possibly caused by Omicron variant. ```SEARO``` has a rapid growth from 2021-04.
+
+From the line plot of cumulative deaths trend, ```AMRO``` and ```EMRO``` also have the highest cumulative deaths at the beginning of the pandemic with a steady increasing speed. ```SEARO``` has a rapid growth of deaths from 2021-04, corresponding to its cases trend.
+
+```{r}
+
+line3<-ggplot()+
+    geom_line(covid.region,mapping=aes(x=Date_reported,y=New_deaths,color=WHO_region))
+
+line4<-ggplot()+
+    geom_line(covid.region,mapping=aes(x=Date_reported,y=Mortality_rate,color=WHO_region))
+
+line3/line4
+
+```
+
+From the line plot of new cases trend, the number of new deaths of ```AMRO``` and ``` EMRO``` fluctuates around a relatively high horizontal line. New deaths of ```SEARO``` keep relatively low except for a peak lasting from around 2021-04 to 2021-09. Other regions keep low on new deaths.
+
+From the mortality trend line, all the regions have a similar trend of increasing and subsequent decreasing, which indicates the critically ill patients begin to decrease or are managed appropriately, or the vaccination possibly begins to take effect.
+
+```{r}
+
+       
+stack1<-ggplot(covid.region, aes(x = Date_reported, y = Cumulative_cases, fill =WHO_region)) + geom_area(position = position_fill(),stat='identity')
+stack2<-ggplot(covid.region, aes(x = Date_reported, y = Cumulative_cases, fill =WHO_region))+ 
+  geom_bar(stat="identity")+geom_col(width = 1)
+stack2/stack1
+```
+
+To see the change of cumulative cases in relative quantity , we use stacked area plot to describe the quantity ratio grouped by region. From these two plots we can find that the proportion of cumulative cases are relatively constant over time, considering extreme proportion of ```WPRO``` at early stage as recording error.
+
+```{r}
+library(gganimate)
+library(gifski)
+p<-ggplot(covid.region, aes(New_cases, New_deaths, size = Cumulative_cases, color = WHO_region)) +
+
+  geom_point()+
+  scale_size(range = c(0.1, 15))+
+  labs( title  =  ' Date: {frame_time} ' , x  =  'New_cases ' , y  =  'New_deaths' ) + 
+   transition_time(Date_reported )+
+  ease_aes('sine-in-out')
+animate(p)
+
+print(p)
+anim_save(filename = 'first.gif',animation = p)
+
+```
+
+We also use ```gganimte``` package$^{[7]}$ to animate the bubble plot of cumulative cases, new cases and new deaths varying with date. From the animation we can find that ```AMRO``` and ```EMRO``` have higher new cases and deaths during almost the entire period. ```SEARO``` has a large number of cumulative cases, but its new cases and new deaths keep low most of the period. 
+
+
+# Inferential analysis of b): Exploring influencing factors of pandemic spread
+
+## Data preprocessing
+
+### Variable selection
+
+For question \textbf{b)}, we want to explore the influencing factors of pandemic spread with different countries as observations. To measure the spread, we use the latest value of ```total_cases_per_million``` as the dependent variable. It's not fair and accurate to use the total cases itself due to the huge gap in population base among countries. ```total_cases_per_million``` has equivalent significance with infection rates and reflects the spread of virus in the entire period. 
+
+For predictors, we choose ```population_density``` because it's naturally connected to the difficulty of virus spreading . We use its average in the period because it is nearly a constant.  We also choose ```containment_index``` as the measure of government's restriction policy to block the virus spread. As it has fast response to changes in the outbreak, we use its average to characterize the overall strictness of a country throughout time. In order to represent degree of immunity of a country's population, we use the latest value of ```people_vaccinated_per_hundred```. In addition, we choose average of ``` hospital_beds_per_thousand``` to represent a country's medical resource during the pandemic. Lastly, we select ```gdp_per_capita``` to partly represent the activeness of economic activity and People mobility. 
+
+After extracting variables based on the above process, we find that there are quite a few missing and infinite values. As for the uniqueness of each country as a sample, we choose to omit these entries rather that filling them with existed data. Finally, we get a subset of \textbf{149} samples. The variable distribution are shown in the next section.
+
+
+
+```{r}
+
+full<-read.csv("owid-covid-data.csv")
+full$date<-as.Date(full$date)
+
+
+```
+
+```{r}
+
+contain<-read.csv("covid-containment-and-health-index.csv")
+contain$date<-as.Date(contain$date)
+full<-inner_join(full,contain,by=c("iso_code","date"))
+```
+
+
+```{r}
+#covid.region<-covid%>%group_by(Date_reported,WHO_region,)%>%summarise(Date_reported=unique(Date_reported),WHO_region=unique(WHO_region), Cumulative_cases=sum(Cumulative_cases,na.rm = TRUE), Cumulative_deaths=sum(Cumulative_deaths,na.rm = TRUE),New_cases=sum(New_cases,na.rm = TRUE),New_deaths=sum(New_deaths,na.rm = TRUE),.groups = 'drop')%>%mutate(Morality_rate=Cumulative_deaths/Cumulative_cases)
+#covid.region$Morality_rate[is.na(covid.region$Morality_rate)]<- 0;
+
+full.new<-full%>%
+    dplyr::select(date,iso_code,
+           total_cases_per_million,
+           total_deaths_per_million,
+           population_density,
+           containment_index,
+           stringency_index,
+           people_vaccinated_per_hundred,
+           hospital_beds_per_thousand,
+           gdp_per_capita)%>%
+    filter(date<="2022-02-17")%>%
+    group_by(iso_code)%>%
+    summarise(date=max(date),
+              iso_code=unique(iso_code),
+              total_cases_per_million=max(total_cases_per_million,na.rm=TRUE),
+              total_deaths_per_million=max(total_deaths_per_million,na.rm=TRUE),
+              containment_index=mean(containment_index,na.rm=TRUE),
+              stringency_index=mean(stringency_index,na.rm=TRUE),
+              population_density=mean(population_density,na.rm=TRUE),
+              people_vaccinated_per_hundred=max(people_vaccinated_per_hundred,na.rm=TRUE),
+              hospital_beds_per_thousand=mean(hospital_beds_per_thousand,na.rm=TRUE),
+              gdp_per_capita=mean(gdp_per_capita,na.rm=TRUE),.groups = 'drop')%>%
+    mutate(Mortality_rate=total_deaths_per_million/total_cases_per_million)
+
+
+full.revise<-na.omit(full.new)
+
+full.revise <- full.revise[is.finite(rowSums(full.revise[,3:11])),]
+
+```
+
+### Variable distribution
+
+```{r}
+full.scale=full.revise
+#for (i in c(3:7,9:11)){
+#  full.scale[,i]=log(full.scale[,i])
+#}
+#full.revise$total_cases_per_million <- scale(full.revise$total_cases_per_million)
+#full.revise$total_deaths_per_million<-scale(full.revise$total_deaths_per_million)
+#full.revise$stringency_index<-scale(full.revise$stringency_index)
+
+
+v1<-ggplot(data=full.scale) +
+    geom_histogram(mapping = aes(x =total_cases_per_million),fill= brewer.pal(7, "Blues")[4],color='black',bins=50)
+
+
+v2<-ggplot(data=full.scale) +
+    geom_histogram(mapping = aes(x =containment_index),fill= brewer.pal(7, "Blues")[4],color='black',bins=50)
+
+v3<-ggplot(data=full.scale) +
+    geom_histogram(mapping = aes(x =people_vaccinated_per_hundred),fill= brewer.pal(7, "Blues")[4],color='black',bins=50)
+v4<-ggplot(data=full.scale) +
+    geom_histogram(mapping = aes(x =hospital_beds_per_thousand),fill= brewer.pal(7, "Blues")[4],color='black',bins=50)
+v5<-ggplot(data=full.scale) +
+    geom_histogram(mapping = aes(x =gdp_per_capita),fill= brewer.pal(7, "Blues")[4],color='black',bins=50)
+v6<-ggplot(data=full.scale) +
+    geom_histogram(mapping = aes(x =population_density),fill= brewer.pal(7, "Blues")[4],color='black',bins=50)
+(v1+v6+v2)/(v3+v4+v5)
+
+
+```
+
+We plot the scaled variable distribution. From the plots we find that most of the variables are in skewed distribution, precisely, logarithmic distribution. If we use linear regression model, the assumption of none of heteroskedasticity might not be satisfied. 
+
+
+### Variable correlation 
+
+```{r}
+
+library(corrplot)
+corr_matrix<-cor(full.scale[,c(3,5,7:10)],method='pearson')
+corrplot(corr_matrix)
+```
+
+We also use ```corrplot``` package to plot the pearson correlation heatmap for independent and dependent variables. From the plots we find that some of the predictors have correlation at level 0.6. If we use linear regression model, the assumption of none of co-linearity might not be satisfied. 
+
+## LR model summary
+
+To explore whether these predictors have significant impact on the dependent variable, we choose linear regression model to fit our processed data.
+The model takes the form as:
+
+$$
+y_i=\beta_0+\sum_{k=1}^p\beta_kx_{ik}+\epsilon_i,\ i=0,1,\cdots,n
+$$
+
+where $y_i$ is the value of dependent variable of $i$-th sample. $x_{ik}$ is the $k$-th predictor of $i$-th sample and $\beta_k$ is the corresponding regression coefficient and $\beta_0$ is the intercept term. $p$ is the total number of predictors and $n$ is the sample size. $\epsilon_i$ is the error term which measures the difference between fitted and true values. Fitting a linear model to a given data set usually requires estimating the regression coefficients vector {\displaystyle {\boldsymbol {\beta }}} such that the error term vector {\displaystyle {\boldsymbol {\varepsilon }}=\mathbf {y} -X{\boldsymbol {\beta }}} is minimized. For example, it is common to use the sum of squared errors {\displaystyle ||{\boldsymbol {\varepsilon }}||_{2}^{2}} as a measure of {\displaystyle {\boldsymbol {\varepsilon }}} for minimization. The fitted value tales the form as:
+
+$$
+\hat{y_i}=\hat{\beta_0}+\sum_{k=1}^p\hat{\beta_k}x_{ik},\ i=0,1,\cdots,n
+$$
+Where $\hat{(\cdot)}$ indicates the estimated values and parameters.
+
+In our question, the meaning of predictors are as follow:
+
+|  Notation  | Meaning  |
+|  ----  | ----  |
+| $y$  |   ```total_cases_per_million``` |
+| $x_1$  |   ``` containment_index```  |                     
+| $x_2$ |  ```people_vaccinated_per_hundred``` |            
+| $x_3$   | ```gdp_per_capita```|   
+| $x_4$  |  ```hospital_beds_per_thousand ``` | 
+| $x_5$  | ```population_density``` | 
+ 
+
+The linear regression model has several critical hypothesis$^{[8]}$ to ensure it's proper.
+- Weak exogeneity. This essentially means that the predictor variables $x$ can be treated as fixed values, not contaminated with measurement errors.
+- Linearity. This means that the mean of the response variable is a linear combination of the parameters (regression coefficients) and the predictor variables.
+- Homoscedasticity. This means that the variance of the errors does not depend on the values of the predictor variables.
+- Independence of errors. This assumes that the errors of the response variables are uncorrelated with each other. 
+- Normality of residuals. This assumes that fitted residuals are normaly distributed.
+- Lack of perfect multicollinearity in the predictors. 
+
+## Model selection
+
+We first try the basic linear model on the original data and then we use box-cox transformation on $y$. From the results, these two linear regression models seem to fit well with several predictors' coeffients signifcant and model itself significant with $p-$value$<0.05$. However, from the dianostic plot of these two models, we find that the key hypothesis of linearity, homoscedasticity, independence of errors and normality of residuals are not satisfied. The summary of these two models is shown in Sensitivity analysis.
+
+Finally, based on the skewed distribution both of $y$ and $x$, we put log transaction to $y$ and $x_3,x_4,x_5$ as our best model. The transformed variable distribution is as follows:
+
+```{r}
+full.scale2=full.revise
+for (i in c(3,7,9,10)){
+  full.scale2[,i]=log(full.scale2[,i])
+}
+#full.revise$total_cases_per_million <- scale(full.revise$total_cases_per_million)
+#full.revise$total_deaths_per_million<-scale(full.revise$total_deaths_per_million)
+#full.revise$stringency_index<-scale(full.revise$stringency_index)
+
+
+r1<-ggplot(data=full.scale2) +
+    geom_histogram(mapping = aes(x =total_cases_per_million),fill= brewer.pal(7, "Blues")[4],color='black',bins=50)
+
+
+r2<-ggplot(data=full.scale2) +
+    geom_histogram(mapping = aes(x =containment_index),fill= brewer.pal(7, "Blues")[4],color='black',bins=50)
+
+r3<-ggplot(data=full.scale2) +
+    geom_histogram(mapping = aes(x =people_vaccinated_per_hundred),fill= brewer.pal(7, "Blues")[4],color='black',bins=50)
+r4<-ggplot(data=full.scale2) +
+    geom_histogram(mapping = aes(x =hospital_beds_per_thousand),fill= brewer.pal(7, "Blues")[4],color='black',bins=50)
+r5<-ggplot(data=full.scale2) +
+    geom_histogram(mapping = aes(x =gdp_per_capita),fill= brewer.pal(7, "Blues")[4],color='black',bins=50)
+r6<-ggplot(data=full.scale2) +
+    geom_histogram(mapping = aes(x =population_density),fill= brewer.pal(7, "Blues")[4],color='black',bins=50)
+(r1+r6+r2)/(r3+r4+r5)
+
+
+```
+
+From the new variable distribution plots we can see the variables are in approximate normal distribution now. The model has a format as follow:
+
+$$
+log(y_i)=\beta_0+\sum_{j=1}^2\beta_jx_{ij}+\sum_{k=3}^5\beta_klog(x_{ik})+\epsilon_i,\ i=0,1,\cdots,n
+$$
+
+We omit the sample indexed 29 based on cook distance. The summary of the model is as follows:
+
+```{r}
+print("summary of LR with log on x and y")
+linear3<-lm(data=full.scale2[-29,],total_cases_per_million~containment_index+people_vaccinated_per_hundred+gdp_per_capita+hospital_beds_per_thousand+population_density)
+summary(linear3)
+
+```
+We also use AIC criterion to choose the optimal subset of predictors. We use ```step(...,direction = 'both', trace = 0, k = 2)``` to omit the extra variable. The result is as follows. ```population_density``` is not significant and thus omitted.
+
+```{r}
+linear4<- step(linear3, direction = 'both', trace = 0, k = 2)
+summary(linear4)
+```
+
+The final model we get is listed below. All the coefficients are significant at $0.05$ level. The model itself is also significant with $p-value<0.001$. $R^2=0.7356$ and $R^2_{adj}=0.7282$, indicating the model fits quite well.
+
+$$
+\hat{log(y_i)}=2.437245+0.036254\cdot x_1+0.008589\cdot x_2+0.567435\cdot log(x_3)+0.631613\cdot log(x_4),\ i=0,1,\cdots,n
+$$
+
+## Inferential analysis
+
+To make inference from the model we get, we take the differential on both sides of the formula:
+
+$$
+\frac{\Delta y_i}{y_i}\approx0.036254\cdot \Delta x_1+0.008589\cdot\Delta x_2+0.567435\cdot\frac{\Delta x_3}{x_3}+0.631613\cdot\frac{\Delta x_4}{x_4},\ i=0,1,\cdots,n\\
+i.e.\\
+\%\Delta y_i\approx0.036254\cdot \Delta x_1+0.008589\cdot\Delta x_2+0.567435\cdot\%\Delta x_3+0.631613\cdot\%\Delta x_4,\ i=0,1,\cdots,n\\
+$$
+
+Where $\Delta$ represents absolute value change and $\%\Delta$ represents percentage change. In this case, we can relate the model to real world:
+
+
+- One-unit growth of ```containment_index``` corresponds to approximate 3.6% of growth of ```total_cases_per_million```($p$-value$<0.001$). This seems to be counterfactual because the spread of virus should have had negative relation with government's restriction. The fact that the government's response to outbreak cases has a lagged effect, which means those countries with more cases will implement stricter policies. 
+
+- One-unit growth of ```people_vaccinated_per_hundred``` corresponds to approximate 0.86% of growth of ```total_cases_per_million```($p$-value<0.05). This also seems counterfactual. A reasonable explanation is that in those countries with high case counts, the government is more inclined to promote vaccination of the population as an initiative to control the outbreak.
+
+- One-unit percentage growth of ```gdp_per_capita ``` corresponds to approximate 0.58% of growth of ```total_cases_per_million```($p$-value <0.001). This is possibly because countries with higher GDP per capital have greater active movement of people and socialization activities, which fasten the spread of the pandemic.
+
+-  One-unit percentage growth of ```hospital_beds_per_thousand ``` corresponds to approximate 0.58% of growth of ```total_cases_per_million```($p$-value <0.001). This is possibly because countries with more cases will put in extra budget to improve their medical resources, including hospital beds.
+
+- ```population_density ``` has no significant impact on ```total_cases_per_million```, indicating that population density is possibly too general and less important than other specific variables.
+
+# Inferential analysis of c): Verifying the effectiveness of vaccination and government's restriction policy
+
+## Data preprocess
+
+### Variable selection
+
+For this part, we choose only American data because we want to exclude the effect of other confounding variables in a period of time. We choose America as the country to observe because it is representative in terms of vaccination coverage, restriction policies, total population and number of new cases. We choose ```people_vaccinated_per_hundred```, ```containment_index```, ``` new cases```, ```new deaths```. Then, we omit entries with missing value and have 440 days of observation of America COVID data.
+
+### Variable conversion
+
+For the sake of analysis, we convert quantitative variables to qualitative variables. Specifically, we cut the ```containment_index``` into three levels averagely , called low, medium and high. We also convert the ```people_vaccinated_per_hundred``` to a category data from 1 to 10. The larger the number is, the, the better the implementation of vaccination is.
+
+```{r}
+America<-full%>%filter(iso_code=='USA')%>%dplyr::select(date,new_cases,total_cases,total_deaths,new_deaths,people_vaccinated_per_hundred,containment_index)%>%mutate(Mortality_rate=total_deaths/total_cases)
+
+America<-na.omit(America)
+
+America <- America[is.finite(rowSums(America[-1])),]
+
+America$containment_index<-cut(America$containment_index,breaks = 3,labels = c("low","medium","high"))
+America$vaccine_stage<-cut(America$people_vaccinated_per_hundred,breaks = 5,labels = 1:5)
+
+```
+
+## ANOVA model summary
+
+To analyze the relationship qualitatively, we define a two-way ANOVA model as follows:
+
+$$Y_{ijk} = \mu_{..} + \alpha_{i} + \beta_{j} + \gamma_{ij}+\epsilon_{ijk}$$
+where the index $i$ represents the containment level: low ($i=1$), medium ($i=2$) and high ($i=3$), and the index $j$ represents the vaccination stage. $Y_{ijk}$ is the response variable (a.k.a. new cases). $\mu_{..}$ is the grand mean of new_cases. $\alpha_i$ is the additive main effect of level $i$ from containment level. $\beta_j$ is the additive main effect of level $j$ from the vaccination stage. $\gamma_{ij}$ is the non-additive interaction effect of treatment($i,j$) for samples $k=1,\cdots,n_{ij}$ from both factors. The assumptions of the parameters are as follows:
+
+- The data points are relevant with respect to the quesition under investigation.
+
+- The mean of the response variable is influenced additively (if not interaction term) and linearly by the factors.
+
+
+- $Y_{ijk}\overset{i.i.d}{\sim} \mathcal{N}(\mu_{ij},\sigma^2)$, where $\mu_{ij}=\mu_{..} + \alpha_{i} + \beta_{j} + \gamma_{ij}$.
+
+- $\epsilon_{ijk}$ are statistical noise(error) which satisfies $\epsilon_{ijk}\overset{i.i.d}{\sim} \mathcal{N}(0,\sigma^2).$
+
+- In this question, there doesn't exist interaction terms. $\sum_i\alpha_i=\sum_j\beta_j=\sum_i\gamma_{ij}=\sum_j{\gamma_{ij}}=0$.
+
+- Independence of observations. 
+
+- Normality. The errors are independently, identically, and normally distributed for fixed effects models.
+
+- Homoscedasticity. The variance of data in groups should be the same.
+
+
+To prove the assumptions, we run a two-step ANOVA model with interaction to fit data and analyze the result.
+
+## Model selection
+
+### Two-way ANOVA
+
+We use ```new_cases``` as response variable to explore the effect of containment level and vaccination stage on controlling the spread of virus. The result is listed below: 
+
+```{r}
+
+aov1 = aov(new_cases~factor(containment_index)*factor(vaccine_stage), data=America) ##interaction with Null hypothesis interaction is 0.
+summary(aov1)
+
+```
+From $p$-value, the influence from two main factors to the response variable, a.k.a. new cases, are both significant under significance level of 99.9%. The related assumptions are satisfied. However, the interaction term is also significant which contradicts with the assumption. 
+
+To find the possible reason, we draw the box plots of new cases grouped by containment level and vaccination stage.
+
+```{r}
+
+aov1<-ggplot(America, aes(containment_index, new_cases)) + 
+  geom_boxplot(aes(fill = containment_index)) +
+  theme(legend.position = "none")
+
+aov2<-ggplot(America, aes(vaccine_stage, new_cases)) + 
+  geom_boxplot(aes(fill = vaccine_stage)) +
+  theme(legend.position = "none")
+aov1+aov2
+```
+
+From the box plot, we can see there exists obvious difference among the groups. For containment level, the low level group has more new cases than others. For vaccination stage, group of stage 1 has more new cases than stage 2,3 and 4. It's corresponding to the fact that vaccination can reduce risk of infection. However, the group of vaccination stage 5 has a lot of high outliers, which means there are other external factors. By exploring the data, we find that some extrmely high new cases come up around 2022/01. Therefore, we guess it's the new Omicron variants that disabled the vaccination.
+
+
+
+### Two-way ANOVA with trimmed data
+
+Therefore, to get rid of the Omicron influence, we use the trimmed data before Omicron spread to America. According to CDC(2021), the first Omicron case in US was on 2021/11/22$^{[10]}$. So we only use the data before this date to eliminate Omicron's impact. The new model results are listed below:
+
+```{r}
+  
+America.new<-America%>%filter(date<="2021-11-22")
+aov2 = aov(new_cases~factor(containment_index)*factor(vaccine_stage), data=America.new) ##interaction with Null hypothesis interaction is 0.
+summary(aov2)
+#par(mfrow=c(2,2))
+#plot(aov2,col=brewer.pal(7, "Blues")[4])
+
+```
+
+The new ANOVA model has an improvement that the interacton term is no longer significant. 
+
+```{r}
+
+aov3<-ggplot(America.new, aes(containment_index, new_cases)) + 
+  geom_boxplot(aes(fill = containment_index)) +
+  theme(legend.position = "none")
+
+aov4<-ggplot(America.new, aes(vaccine_stage, new_cases)) + 
+  geom_boxplot(aes(fill = vaccine_stage)) +
+  theme(legend.position = "none")
+aov3+aov4
+
+```
+
+From the new box plot of vaccinatino stage, group 5 still has higher avergae than 2,3 and 4, but no longer have outliers.
+
+## Inferential analysis
+
+we use Tukey's range test to figure out rigorously the effect of vaccination. The Tukey's Honestly-Significant-Difference (TukeyHSD) test can show which groups are different from one another. The output shows the pairwise difference between the 3 containment level with the average difference $diff=\mu_i-\mu_j$, $i,j$ refers to different pairwise mean newcases. The output also shows the lower and upper bound of the 95% confidence interval and the p-value of the difference.  The Tukey's test are clarified as follows:
+
+The Tukey's test are clarified as follows:
+
+$$
+q_s=\frac{Y_A-Y_B}{SE},
+$$
+
+where $Y_A$ is the larger of the two means being compared, $Y_B$ is the smaller of the two means being compared, and $SE$ is the standard error of the sum of the means. The $q_s$ value can then be compared to a $q$ value from the studentized range distribution. If the $q_s$ value is larger than the critical value $q_{\alpha}$ obtained from the distribution, the two means are said to be significantly different at level ${\displaystyle \alpha :0\leq \alpha \leq 1}$.
+
+The null hypothesis for Tukey's test states that all means being compared are from the same population (i.e. $μ_1 = μ_2 = μ_3 = ... = μ_k$).
+
+```{r}
+
+TukeyHSD(aov2,"factor(containment_index)" )
+TukeyHSD(aov2,"factor(vaccine_stage)" )
+
+```
+From the test results, under the significant level of $99.5\%$ we see that there are significant differences ($p<0.05$) between high-low and high-medium containment level. 6 out of 10 groups of vaccination stage are significantly different ($p<0.05$). It's certificated that vaccination and containment have significant effect on new cases.
+
+# Sensitivity analysis
+
+## Linear regression
+
+### Model comparison
+
+```{r}
+
+print("summary of base LR")
+linear<-lm(data=full.scale,total_cases_per_million~containment_index+people_vaccinated_per_hundred+gdp_per_capita+hospital_beds_per_thousand+population_density)
+summary(linear)
+par(mfrow=c(2,2))
+plot(linear,col=brewer.pal(7, "Blues")[4],color="black",pch=16)
+```
+
+BOX-COX is a data transformation technique used to stabilize variance, make the data more normal distribution-like, improve the validity of measures of association. The one-parameter Box–Cox transformations are defined as:
+
+\begin{aligned}
+ y_{i}^{\lambda}&=\frac{y_{i}^{\lambda }-1}{\lambda },\ if \ \lambda \neq 0,\\
+ y_{i}^{\lambda}&=ln(y_{i}),\ if\ \lambda =0.
+\end{aligned}
+
+Where $\lambda$ is estimated using the profile likelihood function. We use ```MASS`` package to do the transaction and get $\lambda=0.22222$.
+
+```{r}
+library(MASS)
+print("summary of LR with box-cox transformation on y")
+bc<-boxcox(linear,data=full.scale,plotit = FALSE)
+lambda <- bc$x[which.max(bc$y)] 
+y<- full.scale$total_cases_per_million
+yl <- (y^lambda-1)/lambda 
+linear2<-lm(data=full.scale,yl~containment_index+people_vaccinated_per_hundred+gdp_per_capita+hospital_beds_per_thousand+population_density)
+summary(linear2)
+par(mfrow=c(2,2))
+plot(linear2,col=brewer.pal(7, "Blues")[4],color="black",pch=16)
+
+```
+
+Although these two models have good fitting results, they are not qualified because some of hypothesis are not satisfied. Not only the dependent variables but also some independent variables are skewed, which leads to problems such as heteroskedasticity in regression models using the original data. The skewed distributions of the independent variables are due to the large differences between the sample countries. Meanwhile, in terms of the other evaluation metrics of the regression analysis, these two models also do not work as well as our selected model. The metrics we use to compare these models are as follows:
+
+
+|Model|$R^2$|$R^2_{adj}$|AIC|$F$-statistic|
+|----|----|----|----|----|
+|Basic LR|0.3814|0.3597| 3838.113|17.63|
+|LR with box-cox|0.5438|0.5279|1101.948 | 34.1|
+| LR with log  | 0.7356 | 0.7263 | 398.7787 | 0.7263|
+| LR with log, AIC|0.7356|0.7282 |396.7868|99.45 |
+
+### Model diagnosis
+
+We firstly ouput the diagnostic plots for the final model we coose:
+
+```{r}
+par(mfrow=c(2,2))
+plot(linear4,col=brewer.pal(7, "Blues")[4],color="black",pch=16)
+```
+
+From the diagnostic plot of our linear regression model with log on $x$ and $y$ and improved by AIC, the linearily is proven by the horizontal red line in ```Residuals vs Fitted``` plot. The normality is proven in ```Normal Q-Q plot```. The homoscedasticity of the variance of residuals is proven by the horizontal red line in ```Scale-Location``` plot. And few points are detected outliers.
+
+
+
+We also use variance inflation factor (VIF) to verify the collinearity of the model. It reflects all other factors that influence the uncertainty in the coefficient estimates$^{[11]}$. VIF factor for $\hat {\beta_i}$ has the following formula :
+
+$$
+\mathrm {VIF} _{i}={\frac {1}{1-R_{i}^{2}}}
+$$
+Analyze the magnitude of multicollinearity by considering the size of the $\mathrm{VIF}_i$. A rule of thumb is that if $\mathrm{VIF}(\hat{\beta_i})>10$, then multicollinearity is high. 
+```{r}
+library(car)
+print("VIF to verify collinearity")
+vif(linear4)
+```
+
+From the result, out model lack of significant collinearity.
+
+## ANOVA 
+### Model comparison
+
+```{r}
+## resdual plot of fitted value
+print("Dignoistic plot of original data")
+par(mfrow=c(2,2))
+plot(aov1,col=brewer.pal(7, "Blues")[4],pch=16)
+```
+
+```{r}
+print("Dignostic plot of trimmed data")
+par(mfrow=c(2,2))
+plot(aov2,col=brewer.pal(7, "Blues")[4],pch=16)
+
+
+```
+
+Comparing the diagnostic plots of two two-way ANOVA model, we can find that the one on original data is poor on normality. while another based on trimmed data generally satisfies the hypothesis of homoscedasticity, normality and i.i.d of its residuals. So it's reasonable to use the model with built upon trimmed data. 
+
+
+# Conclusion
+
+For question \textbf{a)}, we can conclude that:
+- One-unit growth of ```containment_index``` corresponds to approximate 3.6% of growth of ```total_cases_per_million```($p$-value$<0.001$). This seems to be counterfactual because the spread of virus should have had negative relation with government's restriction. The fact that the government's response to outbreak cases has a lagged effect, which means those countries with more cases will implement stricter policies. 
+- One-unit growth of ```people_vaccinated_per_hundred``` corresponds to approximate 0.86% of growth of ```total_cases_per_million```($p$-value<0.05). This also seems counterfactual. A reasonable explanation is that in those countries with high case counts, the government is more inclined to promote vaccination of the population as an initiative to control the outbreak.
+
+- One-unit percentage growth of ```gdp_per_capita ``` corresponds to approximate 0.58% of growth of ```total_cases_per_million```($p$-value <0.001). This is possibly because countries with higher GDP per capital have greater active movement of people and socialization activities, which fasten the spread of the pandemic.
+
+- One-unit percentage growth of ```hospital_beds_per_thousand ``` corresponds to approximate 0.58% of growth of ```total_cases_per_million```($p$-value <0.001). This is possibly because countries with more cases will put in extra budget to improve their medical resources, including hospital beds.
+
+- ```population_density ``` has no significant impact on ```total_cases_per_million```, indicating that population density is possibly too general and less important than other specific variables.
+
+- caveats: We should notice that the regression model is built upon the section data on 2022/2/17. The result may be completely different if we choose another date. Meanwhile, although an accurate relation ship is given, the model can just reflect the rought correlation among variables. It's irrational to get exact calculation of cases with this model.
+
+For question $\textbf{c)}$, we can conclude that:
+
+- Under the significant level of $99.5\%$ we see that there are significant differences ($p<0.05$) between high-low and high-medium containment level. Six out of ten groups of vaccination stage are significantly different ($p<0.05$). It's certificated that vaccination and containment have significant effect on new cases.
+
+- From the conclusion above, we can say containment level and vaccination do have a influence on spread of the virus, or new cases.
+
+- caveats:We should know for this ANOVA model that although the difference among groups is sigificant, there are some counterfatuals such as the highest containment group has also the highest new cases, indicating that our data transformation is possibly unreasonable. 
+
+
+
+
+
+# Reference {-}
+
+<span style='color:blue'>
+
+[1]Wikipedia contributors. (2022c, February 17). COVID-19. Wikipedia. https://en.wikipedia.org/wiki/COVID-19
+
+[2]Tantrakarnapa, Kraichat et al. “Influencing factors of COVID-19 spreading: a case study of Thailand.” Zeitschrift fur Gesundheitswissenschaften = Journal of public health, 1-7. 18 Jun. 2020, doi:10.1007/s10389-020-01329-5
+
+[3]Violato, Claudio, Emilio Mauro Violato, and Efrem Mauro Violato. "Impact of the stringency of lockdown measures on covid-19: A theoretical model of a pandemic." PloS one 16.10 (2021): e0258205.
+
+[4]Xie, Lin et al. “Medical resources and coronavirus disease (COVID-19) mortality rate: Evidence and implications from Hubei province in China.” PloS one vol. 16,1 e0244867. 15 Jan. 2021, doi:10.1371/journal.pone.0244867
+
+[5]WHO COVID-19 Explorer. (n.d.). The WHO Coronavirus Disease (COVID-19) Explorer. Retrieved February 18, 2022, from https://worldhealthorg.shinyapps.io/covid/
+
+[6]Hannah Ritchie, Edouard Mathieu, Lucas Rodés-Guirao, Cameron Appel, Charlie Giattino, Esteban Ortiz-Ospina, Joe Hasell, Bobbie Macdonald, Diana Beltekian and Max Roser (2020) - "Coronavirus Pandemic (COVID-19)". Published online at OurWorldInData.org. Retrieved from: 'https://ourworldindata.org/coronavirus' [Online Resource]
+
+[7]“A Grammar of Animated Graphics.” Edited by Thomas  Lin Pedersen, A Grammar of Animated Graphics •, https://gganimate.com/index.html. 
+
+[8]Wikipedia contributors. (2022e, March 11). Linear regression. Wikipedia. https://en.wikipedia.org/wiki/Linear_regression
+
+[9]Wikipedia contributors. (2022c, January 22). Power transform. Wikipedia. https://en.wikipedia.org/wiki/Power_transform
+
+[10]Coronavirus Disease 2019. (2021, December 1). Centers for Disease Control and Prevention. Retrieved March 13, 2022, from https://www.cdc.gov/media/releases/2021/s1201-omicron-variant.html#:%7E:text=First%20Confirmed%20Case%20of%20Omicron%20Variant%20Detected%20in%20the%20United%20States,-Media%20Statement&text=The%20California%20and%20San%20Francisco,529).
+
+[11]Variance Inflation Factor (VIF). (2021, October 31). Investopedia. https://www.investopedia.com/terms/v/variance-inflation-factor.asp#:%7E:text=Variance%20inflation%20factor%20(VIF)%20is,only%20that%20single%20independent%20variable.
+
+
+\newpage
+
+
+
+# Appendix{-}
+
+## One-way ANOVA for new cases and new_deaths{-}
+
+```{r}
+model4 = aov(new_deaths~factor(vaccine_stage), data=America.new) ##interaction with Null hypothesis interaction is 0.
+summary(model4)
+par(mfrow=c(2,2))
+plot(model4)
+
+```
+```{r}
+
+model5 = aov(new_cases~factor(containment_index), data=America.new) ##interaction with Null hypothesis interaction is 0.
+summary(model5)
+par(mfrow=c(2,2))
+plot(model5)
+
+```
+
+
+
+# Code Appendix And Session info{-}
+
+```{r, ref.label=knitr::all_labels(),echo=TRUE,eval=FALSE}
+```
+
+
+```{r}
+sessionInfo()
+```
+
+
+
+
+
+
